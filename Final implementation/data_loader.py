@@ -34,15 +34,15 @@ class DataLoader:
         kwargs = {'num_workers': 4, 'pin_memory': True} if torch.cuda.is_available() else {}
 
         # Creating data loaders
-        dataset_train = ClassificationDataSet(self.train)
+        dataset_train = ClassificationDataSet(self.train,True)
         self.train_data_loader = torch.utils.data.DataLoader(dataset_train, batch_size=batch_size,
                                                              collate_fn=dataset_train.collate, shuffle=True, **kwargs)
 
-        dataset_dev = ClassificationDataSet(self.dev)
+        dataset_dev = ClassificationDataSet(self.dev,False)
         self.dev_data_loader = torch.utils.data.DataLoader(dataset_dev, batch_size=batch_size,
                                                            collate_fn=dataset_dev.collate, shuffle=False, **kwargs)
         
-        dataset_test = ClassificationDataSet(self.test)
+        dataset_test = ClassificationDataSet(self.test,False)
         self.test_data_loader = torch.utils.data.DataLoader(dataset_test, batch_size=batch_size,
                                                            collate_fn=dataset_test.collate, shuffle=False, **kwargs)
         
@@ -59,27 +59,32 @@ class DataLoader:
 
 
 class ClassificationDataSet(torch.utils.data.TensorDataset):
-    def __init__(self, data):
+    def __init__(self, data, shuffle=False):
         super(ClassificationDataSet, self).__init__()
         # data is a list of tuples (sent, label)
         self.sents = [x[0] for x in data]
         self.labels = [x[1] for x in data]
         self.num_of_samples = len(self.sents)
+        self.shuffle = shuffle
 
     def __len__(self):
         return self.num_of_samples
 
     def __getitem__(self, idx):
-        return self.sents[idx], len(self.sents[idx]), self.labels[idx]
+        return self.sents[idx], len(self.sents[idx]), self.labels[idx], self.shuffle
 
     @staticmethod
     def collate(batch):
         sents = np.array([x[0] for x in batch])
         sent_lens = np.array([x[1] for x in batch])
         labels = np.array([x[2] for x in batch])
+        shuffle = batch[0][0]
 
         # List of indices according to decreasing order of sentence lengths
-        sorted_indices = sent_lens.argsort()[::-1]#np.flipud(np.argsort(sent_lens))
+        if shuffle:
+            sorted_indices = sent_lens.argsort()[::-1]#np.flipud(np.argsort(sent_lens))
+        else:
+            sorted_indices = range(len(sent_lens))
         # Sorting the elements od the batch in decreasing length order
         input_lens = sent_lens[sorted_indices]
         sents = sents[sorted_indices]
